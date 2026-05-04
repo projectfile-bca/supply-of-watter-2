@@ -1523,6 +1523,7 @@ function CustomerOrderForm({ activeSection }) {
   const [chatOpenByOrder, setChatOpenByOrder] = React.useState({});
   const [chatLoadingByOrder, setChatLoadingByOrder] = React.useState({});
   const [chatMetaByOrder, setChatMetaByOrder] = React.useState({});
+  const [isPlacingOrder, setIsPlacingOrder] = React.useState(false);
   const [status, setStatus] = React.useState({ type: "idle", message: "" });
 
   React.useEffect(() => {
@@ -1689,6 +1690,7 @@ function CustomerOrderForm({ activeSection }) {
 
   async function submitOrder(event) {
     event.preventDefault();
+    if (isPlacingOrder) return;
     if (!orderLocation) {
       setStatus({
         type: "error",
@@ -1696,6 +1698,7 @@ function CustomerOrderForm({ activeSection }) {
       });
       return;
     }
+    setIsPlacingOrder(true);
     try {
       setStatus({ type: "loading", message: "Creating order..." });
       const litres = resolveLitres(form.quantityOption, form.customLitres);
@@ -1715,6 +1718,8 @@ function CustomerOrderForm({ activeSection }) {
       setStatus({ type: "success", message: "Order created successfully." });
     } catch (error) {
       setStatus({ type: "error", message: error.message });
+    } finally {
+      setIsPlacingOrder(false);
     }
   }
 
@@ -2171,7 +2176,10 @@ function CustomerOrderForm({ activeSection }) {
               <span className="delivery-key">GPS required before placing order.</span>
             )}
           </div>
-          <button type="submit" className="submit-button" disabled={status.type === "loading" || !orderLocation}><PackagePlus size={18} />Place order</button>
+          <button type="submit" className="submit-button" disabled={isPlacingOrder}>
+            {isPlacingOrder ? <Loader2 size={18} className="spin" /> : <PackagePlus size={18} />}
+            {isPlacingOrder ? "Placing order..." : "Place order"}
+          </button>
         </form>
       )}
 
