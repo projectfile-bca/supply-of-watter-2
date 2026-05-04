@@ -240,6 +240,13 @@ async function readApiResponse(response) {
     return {};
   }
 
+  const normalizedText = text.trim().toLowerCase();
+  if (normalizedText.startsWith("<!doctype html") || normalizedText.startsWith("<html")) {
+    return {
+      message: "Backend API URL is likely incorrect (received HTML instead of JSON)."
+    };
+  }
+
   try {
     return JSON.parse(text);
   } catch {
@@ -255,6 +262,12 @@ function getRequestErrorMessage(error, fallbackMessage) {
     return "Unable to reach server. Check frontend API URL, backend deploy status, and CORS CLIENT_URL setting.";
   }
   return rawMessage;
+}
+
+function getApiFailureMessage(response, data, fallbackMessage) {
+  const backendMessage = String(data?.message || "").trim();
+  if (backendMessage) return backendMessage;
+  return `${fallbackMessage} (HTTP ${response.status})`;
 }
 
 function resolveLitres(quantityOption, customLitres) {
@@ -777,7 +790,7 @@ function LoginForm({ onLogin }) {
       setForm(initialLoginForm);
       onLogin(data);
     } catch (error) {
-      setStatus({ type: "error", message: getRequestErrorMessage(error, "Customer registration failed.") });
+      setStatus({ type: "error", message: getRequestErrorMessage(error, "Login failed.") });
     }
   }
 
@@ -833,11 +846,14 @@ function CustomerRegistrationForm() {
         body: JSON.stringify(form)
       });
       const data = await readApiResponse(response);
-      if (!response.ok) throw new Error(data.message || "Customer registration failed.");
+      if (!response.ok) throw new Error(getApiFailureMessage(response, data, "Customer registration failed."));
+      if (!data?.token || !data?.user) {
+        throw new Error("Unexpected registration response. Check VITE_API_URL points to backend.");
+      }
       setForm(initialCustomerForm);
       setStatus({ type: "success", message: "Customer account created. You can log in immediately." });
     } catch (error) {
-      setStatus({ type: "error", message: getRequestErrorMessage(error, "Application submission failed.") });
+      setStatus({ type: "error", message: getRequestErrorMessage(error, "Customer registration failed.") });
     }
   }
 
@@ -953,13 +969,13 @@ function DriverApplicationForm() {
         body: JSON.stringify({ ...form, aadhaarUrl, licenseUrl })
       });
       const data = await readApiResponse(response);
-      if (!response.ok) throw new Error(data.message || "Application submission failed.");
+      if (!response.ok) throw new Error(getApiFailureMessage(response, data, "Application submission failed."));
       setForm(initialDriverForm);
       setFiles({ aadhaar: null, license: null });
       setPreviews({ aadhaar: "", license: "" });
       setStatus({ type: "success", message: "Application submitted. Your access unlocks after admin approval." });
     } catch (error) {
-      setStatus({ type: "error", message: error.message });
+      setStatus({ type: "error", message: getRequestErrorMessage(error, "Application submission failed.") });
     }
   }
 
