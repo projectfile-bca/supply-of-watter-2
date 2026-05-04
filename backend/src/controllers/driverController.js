@@ -1,15 +1,30 @@
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import { getDriverRatingMap } from "../services/driverRatingService.js";
+import {
+  isStrongPassword,
+  isValidPhone,
+  PASSWORD_VALIDATION_MESSAGE,
+  PHONE_VALIDATION_MESSAGE
+} from "../utils/validation.js";
 
 export async function applyDriver(req, res, next) {
   try {
     const { name, phone, email, password, aadhaarUrl, licenseUrl } = req.body;
+    const normalizedPhone = String(phone || "").trim();
 
     if (!name || !phone || !email || !password || !aadhaarUrl || !licenseUrl) {
       return res.status(400).json({
         message: "Name, phone, email, password, Aadhaar image URL, and license image URL are required."
       });
+    }
+
+    if (!isValidPhone(normalizedPhone)) {
+      return res.status(400).json({ message: PHONE_VALIDATION_MESSAGE });
+    }
+
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({ message: PASSWORD_VALIDATION_MESSAGE });
     }
 
     const existingUser = await User.findOne({ email });
@@ -19,7 +34,7 @@ export async function applyDriver(req, res, next) {
 
     const driver = await User.create({
       name,
-      phone,
+      phone: normalizedPhone,
       email,
       passwordHash: await bcrypt.hash(password, 12),
       role: "driver",

@@ -20,21 +20,63 @@ dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 5000;
+
+function normalizeOrigin(origin) {
+  return String(origin || "")
+    .trim()
+    .replace(/\/+$/, "");
+}
+
+function isSecureVercelOrigin(origin) {
+  try {
+    const parsed = new URL(origin);
+    return parsed.protocol === "https:" && parsed.hostname.endsWith(".vercel.app");
+  } catch {
+    return false;
+  }
+}
+
+function isSecureOrigin(origin) {
+  try {
+    return new URL(origin).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 const configuredOrigins = (process.env.CLIENT_URL || "")
   .split(",")
-  .map((origin) => origin.trim())
+  .map(normalizeOrigin)
   .filter(Boolean);
-const localOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"];
-const allowedOrigins = [...new Set([...configuredOrigins, ...localOrigins])];
+const localOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"].map(normalizeOrigin);
+const allowedOriginSet = new Set([...configuredOrigins, ...localOrigins]);
+const hasConfiguredOrigins = configuredOrigins.length > 0;
+const allowVercelPreviewOrigins = configuredOrigins.some(isSecureVercelOrigin);
 
 // CORS (ONLY ONCE)
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin) {
         return callback(null, true);
       }
-      return callback(new Error("CORS origin not allowed"));
+
+      const normalizedOrigin = normalizeOrigin(origin);
+
+      if (allowedOriginSet.has(normalizedOrigin)) {
+        return callback(null, true);
+      }
+
+      if (allowVercelPreviewOrigins && isSecureVercelOrigin(normalizedOrigin)) {
+        return callback(null, true);
+      }
+
+      // Safety fallback for first deploy: if CLIENT_URL is not set yet, allow HTTPS origins.
+      if (!hasConfiguredOrigins && isSecureOrigin(normalizedOrigin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`CORS origin not allowed: ${normalizedOrigin}`));
     },
     credentials: true
   })

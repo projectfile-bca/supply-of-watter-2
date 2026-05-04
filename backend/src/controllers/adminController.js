@@ -4,6 +4,7 @@ import Complaint from "../models/Complaint.js";
 import Order from "../models/Order.js";
 import Subscription from "../models/Subscription.js";
 import User from "../models/User.js";
+import { isStrongPassword, PASSWORD_VALIDATION_MESSAGE } from "../utils/validation.js";
 
 export async function getAdminProfile(req, res) {
   res.json({
@@ -31,6 +32,10 @@ export async function updateAdminProfile(req, res, next) {
     if (newPassword) {
       if (!currentPassword) {
         return res.status(400).json({ message: "Current password is required to change password." });
+      }
+
+      if (!isStrongPassword(newPassword)) {
+        return res.status(400).json({ message: PASSWORD_VALIDATION_MESSAGE });
       }
 
       const isCurrentPasswordValid = await bcrypt.compare(currentPassword, admin.passwordHash);

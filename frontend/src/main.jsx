@@ -35,6 +35,10 @@ import "./styles.css";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 const allowedTypes = ["image/jpeg", "image/jpg", "image/png"];
+const PHONE_RULE_TEXT = "Phone must be exactly 10 digits.";
+const PASSWORD_RULE_TEXT = "Password must be at least 6 characters and include at least 1 number and 1 special character.";
+const PHONE_REGEX = /^\d{10}$/;
+const STRONG_PASSWORD_REGEX = /^(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
 
 const initialLoginForm = { loginId: "", password: "" };
 const initialCustomerForm = { name: "", phone: "", email: "", password: "" };
@@ -203,6 +207,18 @@ function apiUrl(path) {
   return `${API_BASE_URL}${path}`;
 }
 
+function normalizePhoneInput(value) {
+  return String(value || "").replace(/\D/g, "").slice(0, 10);
+}
+
+function isValidPhoneNumber(value) {
+  return PHONE_REGEX.test(String(value || "").trim());
+}
+
+function isStrongPassword(value) {
+  return STRONG_PASSWORD_REGEX.test(String(value || ""));
+}
+
 async function readApiResponse(response) {
   const text = await response.text();
 
@@ -217,6 +233,14 @@ async function readApiResponse(response) {
       message: text
     };
   }
+}
+
+function getRequestErrorMessage(error, fallbackMessage) {
+  const rawMessage = String(error?.message || fallbackMessage || "Request failed.");
+  if (/failed to fetch/i.test(rawMessage)) {
+    return "Unable to reach server. Check frontend API URL, backend deploy status, and CORS CLIENT_URL setting.";
+  }
+  return rawMessage;
 }
 
 function resolveLitres(quantityOption, customLitres) {
@@ -739,7 +763,7 @@ function LoginForm({ onLogin }) {
       setForm(initialLoginForm);
       onLogin(data);
     } catch (error) {
-      setStatus({ type: "error", message: error.message });
+      setStatus({ type: "error", message: getRequestErrorMessage(error, "Customer registration failed.") });
     }
   }
 
@@ -769,11 +793,24 @@ function CustomerRegistrationForm() {
   const [status, setStatus] = React.useState({ type: "idle", message: "" });
 
   function updateField(event) {
-    setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
+    const nextValue = event.target.name === "phone"
+      ? normalizePhoneInput(event.target.value)
+      : event.target.value;
+    setForm((current) => ({ ...current, [event.target.name]: nextValue }));
   }
 
   async function submitCustomer(event) {
     event.preventDefault();
+    if (!isValidPhoneNumber(form.phone)) {
+      setStatus({ type: "error", message: PHONE_RULE_TEXT });
+      return;
+    }
+
+    if (!isStrongPassword(form.password)) {
+      setStatus({ type: "error", message: PASSWORD_RULE_TEXT });
+      return;
+    }
+
     try {
       setStatus({ type: "loading", message: "Creating customer account..." });
       const response = await fetch(apiUrl("/auth/register-customer"), {
@@ -786,7 +823,7 @@ function CustomerRegistrationForm() {
       setForm(initialCustomerForm);
       setStatus({ type: "success", message: "Customer account created. You can log in immediately." });
     } catch (error) {
-      setStatus({ type: "error", message: error.message });
+      setStatus({ type: "error", message: getRequestErrorMessage(error, "Application submission failed.") });
     }
   }
 
@@ -794,9 +831,27 @@ function CustomerRegistrationForm() {
     <form className="application-form" onSubmit={submitCustomer}>
       <div className="field-grid">
         <TextInput label="Name" name="name" value={form.name} onChange={updateField} />
-        <TextInput label="Phone" name="phone" value={form.phone} onChange={updateField} />
+        <TextInput
+          label="Phone"
+          name="phone"
+          value={form.phone}
+          onChange={updateField}
+          inputMode="numeric"
+          maxLength="10"
+          pattern="[0-9]{10}"
+          title={PHONE_RULE_TEXT}
+        />
         <TextInput label="Email" name="email" type="email" value={form.email} onChange={updateField} />
-        <TextInput label="Password" name="password" type="password" minLength="6" value={form.password} onChange={updateField} />
+        <TextInput
+          label="Password"
+          name="password"
+          type="password"
+          minLength="6"
+          pattern="(?=.*[0-9])(?=.*[^A-Za-z0-9]).{6,}"
+          title={PASSWORD_RULE_TEXT}
+          value={form.password}
+          onChange={updateField}
+        />
       </div>
       <StatusMessage status={status} />
       <button type="submit" className="submit-button" disabled={status.type === "loading"}>
@@ -822,7 +877,10 @@ function DriverApplicationForm() {
   }, [previews]);
 
   function updateField(event) {
-    setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
+    const nextValue = event.target.name === "phone"
+      ? normalizePhoneInput(event.target.value)
+      : event.target.value;
+    setForm((current) => ({ ...current, [event.target.name]: nextValue }));
   }
 
   function updateFile(field, file) {
@@ -849,6 +907,16 @@ function DriverApplicationForm() {
 
   async function submitApplication(event) {
     event.preventDefault();
+    if (!isValidPhoneNumber(form.phone)) {
+      setStatus({ type: "error", message: PHONE_RULE_TEXT });
+      return;
+    }
+
+    if (!isStrongPassword(form.password)) {
+      setStatus({ type: "error", message: PASSWORD_RULE_TEXT });
+      return;
+    }
+
     if (!files.aadhaar || !files.license) {
       setStatus({ type: "error", message: "Please upload both Aadhaar and Driving License images." });
       return;
@@ -881,9 +949,28 @@ function DriverApplicationForm() {
     <form className="application-form" onSubmit={submitApplication}>
       <div className="field-grid">
         <TextInput label="Name" name="name" value={form.name} onChange={updateField} />
-        <TextInput label="Phone" name="phone" value={form.phone} onChange={updateField} />
+        <TextInput
+          label="Phone"
+          name="phone"
+          value={form.phone}
+          onChange={updateField}
+          inputMode="numeric"
+          maxLength="10"
+          pattern="[0-9]{10}"
+          title={PHONE_RULE_TEXT}
+        />
         <TextInput label="Email" name="email" type="email" value={form.email} onChange={updateField} wide />
-        <TextInput label="Password" name="password" type="password" minLength="6" value={form.password} onChange={updateField} wide />
+        <TextInput
+          label="Password"
+          name="password"
+          type="password"
+          minLength="6"
+          pattern="(?=.*[0-9])(?=.*[^A-Za-z0-9]).{6,}"
+          title={PASSWORD_RULE_TEXT}
+          value={form.password}
+          onChange={updateField}
+          wide
+        />
       </div>
       <div className="upload-grid">
         <DocumentUpload id="aadhaar" title="Aadhaar image" file={files.aadhaar} preview={previews.aadhaar} onChange={(file) => updateFile("aadhaar", file)} />
@@ -987,6 +1074,11 @@ function AdminDashboard({ user, onUserChange, activeSection }) {
 
   async function updateAdmin(event) {
     event.preventDefault();
+    if (form.newPassword && !isStrongPassword(form.newPassword)) {
+      setStatus({ type: "error", message: PASSWORD_RULE_TEXT });
+      return;
+    }
+
     try {
       setStatus({ type: "loading", message: "Updating admin account..." });
       const data = await adminFetch("/admin/profile", {
@@ -1145,7 +1237,17 @@ function AdminDashboard({ user, onUserChange, activeSection }) {
           <div className="field-grid">
             <TextInput label="Admin username" name="username" value={form.username} onChange={(e) => setForm((c) => ({ ...c, username: e.target.value }))} />
             <TextInput label="Current password" name="currentPassword" type="password" value={form.currentPassword} onChange={(e) => setForm((c) => ({ ...c, currentPassword: e.target.value }))} />
-            <TextInput label="New password" name="newPassword" type="password" value={form.newPassword} onChange={(e) => setForm((c) => ({ ...c, newPassword: e.target.value }))} wide />
+            <TextInput
+              label="New password"
+              name="newPassword"
+              type="password"
+              minLength="6"
+              pattern="(?=.*[0-9])(?=.*[^A-Za-z0-9]).{6,}"
+              title={PASSWORD_RULE_TEXT}
+              value={form.newPassword}
+              onChange={(e) => setForm((c) => ({ ...c, newPassword: e.target.value }))}
+              wide
+            />
           </div>
           <button type="submit" className="submit-button" disabled={status.type === "loading"}>
             {status.type === "loading" ? <Loader2 size={18} className="spin" /> : <Save size={18} />}

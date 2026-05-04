@@ -2,6 +2,12 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import AdminCredential from "../models/AdminCredential.js";
 import User from "../models/User.js";
+import {
+  isStrongPassword,
+  isValidPhone,
+  PASSWORD_VALIDATION_MESSAGE,
+  PHONE_VALIDATION_MESSAGE
+} from "../utils/validation.js";
 
 function createToken(user) {
   return jwt.sign(
@@ -50,9 +56,18 @@ function serializeUser(user) {
 export async function registerCustomer(req, res, next) {
   try {
     const { name, phone, email, password } = req.body;
+    const normalizedPhone = String(phone || "").trim();
 
     if (!name || !phone || !email || !password) {
       return res.status(400).json({ message: "Name, phone, email, and password are required." });
+    }
+
+    if (!isValidPhone(normalizedPhone)) {
+      return res.status(400).json({ message: PHONE_VALIDATION_MESSAGE });
+    }
+
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({ message: PASSWORD_VALIDATION_MESSAGE });
     }
 
     const existingUser = await User.findOne({ email });
@@ -62,7 +77,7 @@ export async function registerCustomer(req, res, next) {
 
     const customer = await User.create({
       name,
-      phone,
+      phone: normalizedPhone,
       email,
       passwordHash: await bcrypt.hash(password, 12),
       role: "customer",
