@@ -219,6 +219,20 @@ function isStrongPassword(value) {
   return STRONG_PASSWORD_REGEX.test(String(value || ""));
 }
 
+function getPhoneValidationMessage(value) {
+  const phone = String(value || "").trim();
+  if (!phone) return "Phone number is required.";
+  if (!isValidPhoneNumber(phone)) return PHONE_RULE_TEXT;
+  return "";
+}
+
+function getPasswordValidationMessage(value) {
+  const password = String(value || "");
+  if (!password) return "Password is required.";
+  if (!isStrongPassword(password)) return PASSWORD_RULE_TEXT;
+  return "";
+}
+
 async function readApiResponse(response) {
   const text = await response.text();
 
@@ -791,6 +805,7 @@ function LoginForm({ onLogin }) {
 function CustomerRegistrationForm() {
   const [form, setForm] = React.useState(initialCustomerForm);
   const [status, setStatus] = React.useState({ type: "idle", message: "" });
+  const [touched, setTouched] = React.useState({ phone: false, password: false });
 
   function updateField(event) {
     const nextValue = event.target.name === "phone"
@@ -801,13 +816,12 @@ function CustomerRegistrationForm() {
 
   async function submitCustomer(event) {
     event.preventDefault();
-    if (!isValidPhoneNumber(form.phone)) {
-      setStatus({ type: "error", message: PHONE_RULE_TEXT });
-      return;
-    }
+    const phoneError = getPhoneValidationMessage(form.phone);
+    const passwordError = getPasswordValidationMessage(form.password);
 
-    if (!isStrongPassword(form.password)) {
-      setStatus({ type: "error", message: PASSWORD_RULE_TEXT });
+    if (phoneError || passwordError) {
+      setTouched({ phone: true, password: true });
+      setStatus({ type: "error", message: phoneError || passwordError });
       return;
     }
 
@@ -840,6 +854,8 @@ function CustomerRegistrationForm() {
           maxLength="10"
           pattern="[0-9]{10}"
           title={PHONE_RULE_TEXT}
+          onBlur={() => setTouched((current) => ({ ...current, phone: true }))}
+          errorMessage={touched.phone ? getPhoneValidationMessage(form.phone) : ""}
         />
         <TextInput label="Email" name="email" type="email" value={form.email} onChange={updateField} />
         <TextInput
@@ -851,6 +867,8 @@ function CustomerRegistrationForm() {
           title={PASSWORD_RULE_TEXT}
           value={form.password}
           onChange={updateField}
+          onBlur={() => setTouched((current) => ({ ...current, password: true }))}
+          errorMessage={touched.password ? getPasswordValidationMessage(form.password) : ""}
         />
       </div>
       <StatusMessage status={status} />
@@ -867,6 +885,7 @@ function DriverApplicationForm() {
   const [files, setFiles] = React.useState({ aadhaar: null, license: null });
   const [previews, setPreviews] = React.useState({ aadhaar: "", license: "" });
   const [status, setStatus] = React.useState({ type: "idle", message: "" });
+  const [touched, setTouched] = React.useState({ phone: false, password: false });
 
   React.useEffect(() => {
     return () => {
@@ -907,13 +926,12 @@ function DriverApplicationForm() {
 
   async function submitApplication(event) {
     event.preventDefault();
-    if (!isValidPhoneNumber(form.phone)) {
-      setStatus({ type: "error", message: PHONE_RULE_TEXT });
-      return;
-    }
+    const phoneError = getPhoneValidationMessage(form.phone);
+    const passwordError = getPasswordValidationMessage(form.password);
 
-    if (!isStrongPassword(form.password)) {
-      setStatus({ type: "error", message: PASSWORD_RULE_TEXT });
+    if (phoneError || passwordError) {
+      setTouched({ phone: true, password: true });
+      setStatus({ type: "error", message: phoneError || passwordError });
       return;
     }
 
@@ -958,6 +976,8 @@ function DriverApplicationForm() {
           maxLength="10"
           pattern="[0-9]{10}"
           title={PHONE_RULE_TEXT}
+          onBlur={() => setTouched((current) => ({ ...current, phone: true }))}
+          errorMessage={touched.phone ? getPhoneValidationMessage(form.phone) : ""}
         />
         <TextInput label="Email" name="email" type="email" value={form.email} onChange={updateField} wide />
         <TextInput
@@ -969,6 +989,8 @@ function DriverApplicationForm() {
           title={PASSWORD_RULE_TEXT}
           value={form.password}
           onChange={updateField}
+          onBlur={() => setTouched((current) => ({ ...current, password: true }))}
+          errorMessage={touched.password ? getPasswordValidationMessage(form.password) : ""}
           wide
         />
       </div>
@@ -3054,11 +3076,14 @@ function ReviewBox({ form, onChange, onSubmit }) {
   );
 }
 
-function TextInput({ label, wide, required = true, ...props }) {
+function TextInput({ label, wide, required = true, errorMessage = "", ...props }) {
+  const hasError = Boolean(errorMessage);
+  const labelClassName = `${wide ? "wide" : ""}${hasError ? " field-has-error" : ""}`.trim();
   return (
-    <label className={wide ? "wide" : ""}>
+    <label className={labelClassName}>
       {label}
-      <input {...props} required={required} />
+      <input {...props} required={required} className={hasError ? "input-invalid" : props.className} />
+      {hasError && <small className="field-error">{errorMessage}</small>}
     </label>
   );
 }
