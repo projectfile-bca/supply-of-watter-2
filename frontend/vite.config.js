@@ -10,6 +10,9 @@ export default defineConfig({
       "/upload": "http://localhost:5000",
       "/drivers": "http://localhost:5000",
       "/orders": "http://localhost:5000",
+      "/reviews": "http://localhost:5000",
+      "/subscriptions": "http://localhost:5000",
+      "/complaints": "http://localhost:5000",
       "/admin": "http://localhost:5000"
     }
   }

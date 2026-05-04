@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
+import { getDriverRatingMap } from "../services/driverRatingService.js";
 
 export async function applyDriver(req, res, next) {
   try {
@@ -104,6 +105,49 @@ export async function updateDriverAvailability(req, res, next) {
       message: "Availability updated.",
       driver
     });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getPublicDrivers(_req, res, next) {
+  try {
+    const drivers = await User.find({
+      role: "driver",
+      isApproved: true,
+      isAvailable: true
+    })
+      .select("-passwordHash")
+      .sort({ name: 1 });
+
+    const ratingMap = await getDriverRatingMap(drivers.map((driver) => driver._id));
+
+    const publicDrivers = drivers
+      .map((driver) => {
+        const ratingSummary = ratingMap.get(driver._id.toString()) || {
+          reviewCount: 0,
+          averageRating: 0,
+          minAverageRequired: 3,
+          minReviewsRequired: 2,
+          isBlocked: false
+        };
+
+        return {
+          id: driver._id,
+          name: driver.name,
+          phone: driver.phone,
+          email: driver.email,
+          isAvailable: driver.isAvailable,
+          averageRating: ratingSummary.averageRating,
+          reviewCount: ratingSummary.reviewCount,
+          minAverageRequired: ratingSummary.minAverageRequired,
+          minReviewsRequired: ratingSummary.minReviewsRequired,
+          isEligible: !ratingSummary.isBlocked
+        };
+      })
+      .filter((driver) => driver.isEligible);
+
+    res.json({ drivers: publicDrivers });
   } catch (error) {
     next(error);
   }
