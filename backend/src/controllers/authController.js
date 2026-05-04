@@ -148,4 +148,3 @@ export async function login(req, res, next) {
 export async function me(req, res) {
   res.json({ user: serializeUser(req.user) });
 }
-// j
