@@ -59,4 +59,7 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+userSchema.index({ role: 1, isApproved: 1, isAvailable: 1 });
+userSchema.index({ role: 1, createdAt: -1 });
+
 export default mongoose.model("User", userSchema);

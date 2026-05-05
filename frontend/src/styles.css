@@ -190,6 +190,18 @@ select {
   z-index: 1;
 }
 
+.top-left-utility {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  max-width: calc(100vw - 28px);
+}
+
 .theme-toggle {
   position: fixed;
   top: 18px;
@@ -211,10 +223,6 @@ select {
 }
 
 .live-clock {
-  position: absolute !important;
-  top: 12px;
-  left: 12px;
-  transform: none;
   z-index: 6;
   min-height: 40px;
   border: 1px solid rgba(132, 208, 240, 0.3);
@@ -225,6 +233,23 @@ select {
   align-items: center;
   gap: 10px;
   padding: 0 14px;
+  box-shadow: 0 8px 20px rgba(0, 10, 22, 0.32);
+  backdrop-filter: blur(6px) saturate(112%);
+}
+
+.admin-nav-chip {
+  min-height: 40px;
+  border: 1px solid rgba(132, 208, 240, 0.3);
+  border-radius: 999px;
+  background: rgba(8, 29, 45, 0.82);
+  color: var(--ink);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  font-size: 0.9rem;
+  font-weight: 900;
+  cursor: pointer;
   box-shadow: 0 8px 20px rgba(0, 10, 22, 0.32);
   backdrop-filter: blur(6px) saturate(112%);
 }
@@ -275,6 +300,12 @@ select {
 }
 
 :root[data-theme="dark"] .live-clock {
+  background: rgba(5, 20, 31, 0.9);
+  border-color: rgba(168, 228, 255, 0.24);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34);
+}
+
+:root[data-theme="dark"] .admin-nav-chip {
   background: rgba(5, 20, 31, 0.9);
   border-color: rgba(168, 228, 255, 0.24);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34);
@@ -1975,14 +2006,14 @@ select.input-invalid {
     right: 10px;
   }
 
-  .live-clock {
-    position: absolute !important;
+  .top-left-utility {
     top: 10px;
     left: 10px;
-    transform: none;
-    width: auto;
-    justify-content: flex-start;
-    margin: 0;
+    right: 88px;
+    gap: 8px;
+  }
+
+  .live-clock {
     padding: 0 10px;
   }
 
@@ -1992,6 +2023,12 @@ select.input-invalid {
 
   .live-clock span {
     font-size: 0.78rem;
+  }
+
+  .admin-nav-chip {
+    min-height: 36px;
+    padding: 0 10px;
+    font-size: 0.82rem;
   }
 
   .emergency-nav {

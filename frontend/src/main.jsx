@@ -386,7 +386,10 @@ function normalizePathname(pathname) {
 }
 
 function getPublicViewFromPathname(pathname) {
-  return normalizePathname(pathname) === "/signup" ? "signup" : "login";
+  const normalizedPath = normalizePathname(pathname);
+  if (normalizedPath === "/signup") return "signup";
+  if (normalizedPath === "/admin-login") return "admin-login";
+  return "login";
 }
 
 function getRoleSectionFromPathname(role, pathname) {
@@ -503,7 +506,7 @@ function App() {
     return (
       <main className="page-shell">
         <ThemeToggle theme={theme} onToggle={() => setTheme(theme === "dark" ? "light" : "dark")} />
-        <LiveDateTime />
+        <TopLeftUtility />
         <section className="application-panel application-panel-compact">
           <div className="dashboard-stack">
             <StatusMessage status={{ type: "loading", message: "Restoring your session..." }} />
@@ -521,7 +524,7 @@ function App() {
     return (
       <main className="page-shell">
         <ThemeToggle theme={theme} onToggle={() => setTheme(theme === "dark" ? "light" : "dark")} />
-        <LiveDateTime />
+        <TopLeftUtility />
         <section className="application-panel">
           <Dashboard user={currentUser} onLogout={handleLogout} onUserChange={setCurrentUser} />
         </section>
@@ -532,7 +535,10 @@ function App() {
   return (
     <main className="page-shell page-shell-home">
       <ThemeToggle theme={theme} onToggle={() => setTheme(theme === "dark" ? "light" : "dark")} />
-      <LiveDateTime />
+      <TopLeftUtility
+        showAdminNav={activeView !== "admin-login"}
+        onAdminLogin={() => navigateWithReload("/admin-login")}
+      />
       <section className="application-panel application-panel-compact">
         <div className="home-hero">
           <span className="avatar-mark hero-mark">
@@ -563,12 +569,37 @@ function App() {
           </button>
         </div>
 
-        {activeView === "login" && <LoginForm onLogin={handleLogin} />}
+        {activeView === "login" && <LoginForm onLogin={handleLogin} mode="user" />}
+        {activeView === "admin-login" && (
+          <div className="dashboard-stack">
+            <div className="signup-role-card">
+              <SectionTitle
+                title="Admin login"
+                caption="Use admin credentials to access the operations console."
+              />
+            </div>
+            <LoginForm onLogin={handleLogin} mode="admin" />
+          </div>
+        )}
         {activeView === "signup" && (
           <SignupPanel signupRole={signupRole} onRoleChange={setSignupRole} />
         )}
       </section>
     </main>
+  );
+}
+
+function TopLeftUtility({ showAdminNav = false, onAdminLogin = null }) {
+  return (
+    <div className="top-left-utility">
+      <LiveDateTime />
+      {showAdminNav && typeof onAdminLogin === "function" && (
+        <button type="button" className="admin-nav-chip" onClick={onAdminLogin}>
+          <ShieldCheck size={16} />
+          Admin login
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -768,7 +799,8 @@ function VisualSlider({ slides, sliderId }) {
   );
 }
 
-function LoginForm({ onLogin }) {
+function LoginForm({ onLogin, mode = "user" }) {
+  const isAdminMode = mode === "admin";
   const [form, setForm] = React.useState(initialLoginForm);
   const [status, setStatus] = React.useState({ type: "idle", message: "" });
 
@@ -779,11 +811,19 @@ function LoginForm({ onLogin }) {
   async function submitLogin(event) {
     event.preventDefault();
     try {
-      setStatus({ type: "loading", message: "Checking account..." });
-      const response = await fetch(apiUrl("/auth/login"), {
+      setStatus({
+        type: "loading",
+        message: isAdminMode ? "Checking admin account..." : "Checking account..."
+      });
+
+      const response = await fetch(apiUrl(isAdminMode ? "/auth/admin-login" : "/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: form.loginId, password: form.password })
+        body: JSON.stringify(
+          isAdminMode
+            ? { username: form.loginId, password: form.password }
+            : { email: form.loginId, password: form.password }
+        )
       });
       const data = await readApiResponse(response);
       if (!response.ok) throw new Error(data.message || "Login failed.");
@@ -798,8 +838,14 @@ function LoginForm({ onLogin }) {
     <form className="application-form" onSubmit={submitLogin}>
       <div className="field-grid">
         <label>
-          Username or email
-          <input name="loginId" value={form.loginId} onChange={updateField} required />
+          {isAdminMode ? "Admin username" : "Username or email"}
+          <input
+            name="loginId"
+            value={form.loginId}
+            onChange={updateField}
+            placeholder={isAdminMode ? "Enter admin username" : "Enter username or email"}
+            required
+          />
         </label>
         <label>
           Password
@@ -809,7 +855,7 @@ function LoginForm({ onLogin }) {
       <StatusMessage status={status} />
       <button type="submit" className="submit-button" disabled={status.type === "loading"}>
         {status.type === "loading" ? <Loader2 size={18} className="spin" /> : <LogIn size={18} />}
-        Login
+        {isAdminMode ? "Admin login" : "Login"}
       </button>
     </form>
   );

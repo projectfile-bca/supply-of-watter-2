@@ -159,6 +159,7 @@ const CHAT_SPAM_WINDOW_MS = 30 * 1000;
 const CHAT_SPAM_LIMIT = 5;
 const CHAT_MUTE_MINUTES = 30;
 const CHAT_ESCALATION_AFTER_VIOLATIONS = 3;
+const ORDER_LIST_EXCLUDED_FIELDS = "-chatMessages -chatModeration -completionCodeHash -deliveryKeyHash";
 const chatBlockedPatterns = [
   {
     reason: "Abusive language is not allowed.",
@@ -250,6 +251,7 @@ async function createAutoEscalationComplaint(order, triggerRole, triggerMessage)
 
 function populateOrder(query) {
   return query
+    .select(ORDER_LIST_EXCLUDED_FIELDS)
     .populate("customer", "name phone email")
     .populate("driver", "name phone email isAvailable")
     .populate("preferredDriver", "name phone email isAvailable")
@@ -351,6 +353,7 @@ export async function getMyOrders(req, res, next) {
     await materializeDueSubscriptions();
 
     const orders = await Order.find({ customer: req.user._id })
+      .select(ORDER_LIST_EXCLUDED_FIELDS)
       .populate("driver", "name phone email")
       .populate("preferredDriver", "name phone email isAvailable")
       .populate("sourceSubscription")

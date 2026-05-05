@@ -31,6 +31,18 @@ function createAdminToken(admin) {
   );
 }
 
+function serializeAdmin(admin) {
+  return {
+    id: admin._id,
+    name: admin.username,
+    username: admin.username,
+    email: "",
+    role: "admin",
+    isApproved: true,
+    isAvailable: true
+  };
+}
+
 async function getAdminCredential() {
   const existingAdmin = await AdminCredential.findOne();
   if (existingAdmin) return existingAdmin;
@@ -50,6 +62,26 @@ function serializeUser(user) {
     role: user.role,
     isApproved: user.isApproved,
     isAvailable: user.isAvailable
+  };
+}
+
+async function getAdminLoginPayload(username, password) {
+  const admin = await getAdminCredential();
+  const normalizedUsername = String(username || "").trim();
+  const isUsernameMatch = admin.username === normalizedUsername;
+
+  if (!isUsernameMatch) {
+    return null;
+  }
+
+  const isValidPassword = await bcrypt.compare(password, admin.passwordHash);
+  if (!isValidPassword) {
+    return null;
+  }
+
+  return {
+    token: createAdminToken(admin),
+    user: serializeAdmin(admin)
   };
 }
 
@@ -96,31 +128,15 @@ export async function registerCustomer(req, res, next) {
 export async function login(req, res, next) {
   try {
     const { email, username, password } = req.body;
-    const loginId = email || username;
+    const loginId = String(email || username || "").trim();
 
     if (!loginId || !password) {
       return res.status(400).json({ message: "Username/email and password are required." });
     }
 
-    const admin = await getAdminCredential();
-    const isAdminLogin = admin.username === loginId;
-    const isValidAdminPassword = isAdminLogin
-      ? await bcrypt.compare(password, admin.passwordHash)
-      : false;
-
-    if (isValidAdminPassword) {
-      return res.json({
-        token: createAdminToken(admin),
-        user: {
-          id: admin._id,
-          name: admin.username,
-          username: admin.username,
-          email: "",
-          role: "admin",
-          isApproved: true,
-          isAvailable: true
-        }
-      });
+    const adminPayload = await getAdminLoginPayload(loginId, password);
+    if (adminPayload) {
+      return res.json(adminPayload);
     }
 
     const user = await User.findOne({ email: loginId });
@@ -147,4 +163,24 @@ export async function login(req, res, next) {
 
 export async function me(req, res) {
   res.json({ user: serializeUser(req.user) });
+}
+
+export async function adminLogin(req, res, next) {
+  try {
+    const { username, password } = req.body;
+    const normalizedUsername = String(username || "").trim();
+
+    if (!normalizedUsername || !password) {
+      return res.status(400).json({ message: "Admin username and password are required." });
+    }
+
+    const adminPayload = await getAdminLoginPayload(normalizedUsername, password);
+    if (!adminPayload) {
+      return res.status(401).json({ message: "Invalid admin username or password." });
+    }
+
+    res.json(adminPayload);
+  } catch (error) {
+    next(error);
+  }
 }

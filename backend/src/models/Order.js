@@ -235,4 +235,10 @@ const orderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+orderSchema.index({ customer: 1, createdAt: -1 });
+orderSchema.index({ driver: 1, createdAt: -1 });
+orderSchema.index({ status: 1, createdAt: -1 });
+orderSchema.index({ driverRequests: 1, status: 1, createdAt: -1 });
+orderSchema.index({ preferredDriver: 1, status: 1, createdAt: -1 });
+
 export default mongoose.model("Order", orderSchema);
